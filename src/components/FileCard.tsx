@@ -1,8 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FileItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { File } from 'lucide-react';
+import { FileTypeIcon } from './FileTypeIcon';
+import { FilePreviewModal } from './FilePreviewModal';
+import { Eye, Download, Trash2, Tag } from 'lucide-react';
 
 interface FileCardProps {
   file: FileItem;
@@ -10,6 +12,8 @@ interface FileCardProps {
 }
 
 export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
+  const [showPreview, setShowPreview] = useState(false);
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -31,35 +35,78 @@ export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
     document.body.removeChild(link);
   };
 
+  const handlePreview = () => {
+    setShowPreview(true);
+  };
+
   return (
-    <div className="group p-4 border rounded-lg hover:shadow-md transition-all duration-300 hover:scale-[1.02] bg-card">
-      <div className="flex items-start gap-3">
-        <File className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm truncate">{file.name}</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            {formatFileSize(file.size)} • {formatDate(file.uploadDate)}
-          </p>
+    <>
+      <div className="group p-4 border rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 bg-card animate-fade-in">
+        <div className="flex items-start gap-3">
+          <FileTypeIcon 
+            filename={file.name} 
+            mimeType={file.type} 
+            className="h-8 w-8 flex-shrink-0 mt-1" 
+          />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-sm truncate hover:text-primary transition-colors cursor-pointer" 
+                onClick={handlePreview}>
+              {file.name}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatFileSize(file.size)} • {formatDate(file.uploadDate)}
+            </p>
+            {file.tags && file.tags.length > 0 && (
+              <div className="flex items-center gap-1 mt-2">
+                <Tag className="h-3 w-3 text-muted-foreground" />
+                <div className="flex gap-1 flex-wrap">
+                  {file.tags.map((tag, index) => (
+                    <span key={index} className="text-xs bg-accent px-1.5 py-0.5 rounded">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handlePreview}
+            className="text-xs hover:scale-105 transition-transform"
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            Preview
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleDownload}
+            className="text-xs hover:scale-105 transition-transform"
+          >
+            <Download className="h-3 w-3 mr-1" />
+            Download
+          </Button>
+          <Button 
+            size="sm" 
+            variant="destructive" 
+            onClick={() => onDelete(file.id)}
+            className="text-xs hover:scale-105 transition-transform"
+          >
+            <Trash2 className="h-3 w-3 mr-1" />
+            Delete
+          </Button>
         </div>
       </div>
-      <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleDownload}
-          className="text-xs"
-        >
-          Download
-        </Button>
-        <Button 
-          size="sm" 
-          variant="destructive" 
-          onClick={() => onDelete(file.id)}
-          className="text-xs"
-        >
-          Delete
-        </Button>
-      </div>
-    </div>
+
+      <FilePreviewModal
+        file={file}
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        onDownload={handleDownload}
+      />
+    </>
   );
 };

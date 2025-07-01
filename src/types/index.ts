@@ -15,6 +15,7 @@ export interface FileItem {
   uploadDate: string;
   userId: string;
   url: string;
+  tags?: string[];
 }
 
 export type Theme = 'light' | 'dark' | 'neo';
@@ -24,5 +25,6 @@ export interface AuthContextType {
   login: (email: string, password: string) => boolean;
   signup: (email: string, password: string, name: string) => boolean;
   logout: () => void;
+  updateUser: (user: User) => void;
   isAuthenticated: boolean;
 }
