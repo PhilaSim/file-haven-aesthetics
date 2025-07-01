@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
-import { Moon, Sun, Toggle } from 'lucide-react';
+import { Moon, Sun, Palette } from 'lucide-react';
 
 export const ThemeToggle: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -20,7 +20,7 @@ export const ThemeToggle: React.FC = () => {
     switch (theme) {
       case 'light': return <Sun className="h-4 w-4" />;
       case 'dark': return <Moon className="h-4 w-4" />;
-      case 'neo': return <Toggle className="h-4 w-4" />;
+      case 'neo': return <Palette className="h-4 w-4" />;
       default: return <Sun className="h-4 w-4" />;
     }
   };
