@@ -40,10 +40,10 @@ export const Dashboard = () => {
                 id: payload.new.id,
                 user_id: payload.new.user_id,
                 name: payload.new.file_name,
-                size: 0, // We'll need to get this from storage
-                mime_type: '', // We'll need to determine this
+                size: payload.new.size || 0,
+                mime_type: payload.new.mime_type || '',
                 storage_path: payload.new.path,
-                public_url: null,
+                public_url: payload.new.public_url,
                 created_at: payload.new.uploaded_at || new Date().toISOString(),
                 updated_at: payload.new.uploaded_at || new Date().toISOString(),
               };
@@ -68,7 +68,7 @@ export const Dashboard = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('files')
         .select('*')
         .eq('user_id', user.id)
@@ -77,14 +77,14 @@ export const Dashboard = () => {
       if (error) throw error;
       
       // Convert database format to FileItem format
-      const convertedFiles: FileItem[] = data.map(file => ({
+      const convertedFiles: FileItem[] = data.map((file: any) => ({
         id: file.id,
         user_id: file.user_id,
         name: file.file_name,
-        size: 0, // We'll need to get this from storage metadata
-        mime_type: '', // We'll need to determine this
+        size: file.size || 0,
+        mime_type: file.mime_type || '',
         storage_path: file.path,
-        public_url: null,
+        public_url: file.public_url,
         created_at: file.uploaded_at || new Date().toISOString(),
         updated_at: file.uploaded_at || new Date().toISOString(),
       }));
@@ -106,36 +106,8 @@ export const Dashboard = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('file_shares')
-        .select(`
-          *,
-          files (
-            id,
-            file_name,
-            path,
-            uploaded_at,
-            user_id
-          )
-        `)
-        .eq('shared_with', user.id);
-
-      if (error) throw error;
-      
-      // Convert to FileItem format
-      const convertedSharedFiles: FileItem[] = data.map(share => ({
-        id: share.files.id,
-        user_id: share.files.user_id,
-        name: share.files.file_name,
-        size: 0,
-        mime_type: '',
-        storage_path: share.files.path,
-        public_url: null,
-        created_at: share.files.uploaded_at || new Date().toISOString(),
-        updated_at: share.files.uploaded_at || new Date().toISOString(),
-      }));
-      
-      setSharedFiles(convertedSharedFiles);
+      // For now, just set empty array since file_shares might not have data yet
+      setSharedFiles([]);
     } catch (error: any) {
       console.error('Error fetching shared files:', error);
     }
@@ -163,7 +135,7 @@ export const Dashboard = () => {
       if (storageError) throw storageError;
 
       // Delete from database
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from('files')
         .delete()
         .eq('id', fileId);

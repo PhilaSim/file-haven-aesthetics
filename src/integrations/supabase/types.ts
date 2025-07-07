@@ -38,6 +38,38 @@ export type Database = {
         }
         Relationships: []
       }
+      file_shares: {
+        Row: {
+          created_at: string | null
+          file_id: string
+          id: string
+          shared_by: string
+          shared_with: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_id: string
+          id?: string
+          shared_by: string
+          shared_with: string
+        }
+        Update: {
+          created_at?: string | null
+          file_id?: string
+          id?: string
+          shared_by?: string
+          shared_with?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_shares_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_uploads: {
         Row: {
           created_at: string
@@ -78,21 +110,30 @@ export type Database = {
         Row: {
           file_name: string
           id: string
+          mime_type: string | null
           path: string
+          public_url: string | null
+          size: number | null
           uploaded_at: string | null
           user_id: string
         }
         Insert: {
           file_name: string
           id?: string
+          mime_type?: string | null
           path: string
+          public_url?: string | null
+          size?: number | null
           uploaded_at?: string | null
           user_id: string
         }
         Update: {
           file_name?: string
           id?: string
+          mime_type?: string | null
           path?: string
+          public_url?: string | null
+          size?: number | null
           uploaded_at?: string | null
           user_id?: string
         }
@@ -119,6 +160,30 @@ export type Database = {
           path?: string | null
           "upload-at"?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

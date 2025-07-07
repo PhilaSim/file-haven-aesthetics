@@ -29,18 +29,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile from profiles table
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (!error && profileData) {
-            setProfile(profileData);
-          } else {
-            console.log('Profile fetch error or no profile found:', error);
-          }
+          // Use a setTimeout to defer the Supabase call and prevent potential deadlocks
+          setTimeout(async () => {
+            try {
+              // Fetch user profile from profiles table using raw query
+              const { data: profileData, error } = await (supabase as any)
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (!error && profileData) {
+                setProfile(profileData as Profile);
+              } else {
+                console.log('Profile fetch error or no profile found:', error);
+              }
+            } catch (err) {
+              console.log('Error fetching profile:', err);
+            }
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -56,15 +63,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        supabase
+        // Fetch profile for initial session
+        (supabase as any)
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: profileData, error }) => {
+          .then(({ data: profileData, error }: any) => {
             if (!error && profileData) {
-              setProfile(profileData);
+              setProfile(profileData as Profile);
             }
+            setLoading(false);
+          })
+          .catch(() => {
             setLoading(false);
           });
       } else {
@@ -105,16 +116,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error('No user found') };
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+    try {
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
 
-    if (!error) {
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      if (!error) {
+        setProfile(prev => prev ? { ...prev, ...updates } : null);
+      }
+
+      return { error };
+    } catch (err) {
+      return { error: err };
     }
-
-    return { error };
   };
 
   const updatePassword = async (password: string) => {

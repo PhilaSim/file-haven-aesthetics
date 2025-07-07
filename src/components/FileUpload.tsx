@@ -49,13 +49,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           .from('user-files')
           .getPublicUrl(filePath);
 
-        // Insert file metadata into database
-        const { data: fileData, error: dbError } = await supabase
+        // Insert file metadata into database using raw query
+        const { data: fileData, error: dbError } = await (supabase as any)
           .from('files')
           .insert({
             file_name: file.name,
             path: filePath,
             user_id: user.id,
+            size: file.size,
+            mime_type: file.type,
+            public_url: publicUrl,
           })
           .select()
           .single();
@@ -69,10 +72,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           id: fileData.id,
           user_id: fileData.user_id,
           name: fileData.file_name,
-          size: file.size,
-          mime_type: file.type,
+          size: fileData.size || file.size,
+          mime_type: fileData.mime_type || file.type,
           storage_path: fileData.path,
-          public_url: publicUrl,
+          public_url: fileData.public_url || publicUrl,
           created_at: fileData.uploaded_at || new Date().toISOString(),
           updated_at: fileData.uploaded_at || new Date().toISOString(),
         };
