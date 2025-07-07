@@ -3,151 +3,158 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FileUpload } from '@/components/FileUpload';
 import { FileCard } from '@/components/FileCard';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { StorageQuota } from '@/components/StorageQuota';
 import { FileSearch } from '@/components/FileSearch';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StorageQuota } from '@/components/StorageQuota';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { FileItem } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User, File, Settings, Plus, FolderPlus, Clock, Star } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LogOut, Settings, Upload, FolderOpen, Share2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-export const Dashboard: React.FC = () => {
-  const { user, logout } = useAuth();
-  const [files, setFiles] = useState<FileItem[]>([]);
-  const [filteredFiles, setFilteredFiles] = useState<FileItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
+export const Dashboard = () => {
+  const { user, profile, logout } = useAuth();
   const { toast } = useToast();
-
-  // Get time-based greeting
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  // Motivational quotes
-  const quotes = [
-    "Organize your files, organize your life! 🌟",
-    "Every file has its place, every place has its file! 📁",
-    "Stay productive, stay organized! 💪",
-    "Your digital vault awaits! 🔐",
-    "File management made simple! ✨"
-  ];
-
-  const dailyQuote = quotes[new Date().getDate() % quotes.length];
+  const navigate = useNavigate();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [sharedFiles, setSharedFiles] = useState<FileItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (user) {
-      const userFiles = JSON.parse(localStorage.getItem(`files_${user.id}`) || '[]');
-      setFiles(userFiles);
-      setFilteredFiles(userFiles);
+      loadFiles();
+      loadSharedFiles();
+      setupRealtimeSubscription();
     }
   }, [user]);
 
-  useEffect(() => {
-    let filtered = files;
+  const loadFiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
 
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(file =>
-        file.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply type filter
-    if (filterType !== 'all') {
-      filtered = filtered.filter(file => {
-        const extension = file.name.split('.').pop()?.toLowerCase() || '';
-        const mimeType = file.type;
-
-        switch (filterType) {
-          case 'images':
-            return mimeType.startsWith('image/');
-          case 'documents':
-            return ['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(extension);
-          case 'videos':
-            return mimeType.startsWith('video/');
-          case 'audio':
-            return mimeType.startsWith('audio/');
-          case 'archives':
-            return ['zip', 'rar', '7z', 'tar', 'gz'].includes(extension);
-          case 'code':
-            return ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'java'].includes(extension);
-          default:
-            return true;
-        }
+      if (error) throw error;
+      setFiles(data || []);
+    } catch (error: any) {
+      toast({
+        title: 'Error loading files',
+        description: error.message,
+        variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setFilteredFiles(filtered);
-  }, [files, searchQuery, filterType]);
+  const loadSharedFiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('file_shares')
+        .select(`
+          *,
+          files (*)
+        `)
+        .eq('shared_with', user?.id);
+
+      if (error) throw error;
+      setSharedFiles(data?.map(share => share.files).filter(Boolean) || []);
+    } catch (error: any) {
+      console.error('Error loading shared files:', error);
+    }
+  };
+
+  const setupRealtimeSubscription = () => {
+    const channel = supabase
+      .channel('files-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'files',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setFiles(prev => [payload.new as FileItem, ...prev]);
+          } else if (payload.eventType === 'DELETE') {
+            setFiles(prev => prev.filter(file => file.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
 
   const handleFileUploaded = (newFile: FileItem) => {
-    setFiles(prev => [...prev, newFile]);
-    toast({
-      title: "File uploaded successfully! 🎉",
-      description: `${newFile.name} has been added to your vault.`,
-    });
+    setFiles(prev => [newFile, ...prev]);
   };
 
-  const handleDeleteFile = (fileId: string) => {
-    if (!user) return;
-    
-    const updatedFiles = files.filter(file => file.id !== fileId);
-    setFiles(updatedFiles);
-    localStorage.setItem(`files_${user.id}`, JSON.stringify(updatedFiles));
-    
-    toast({
-      title: "File deleted",
-      description: "File has been removed from your vault.",
-    });
+  const handleFileDeleted = (fileId: string) => {
+    setFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
-  const handleLogout = () => {
-    logout();
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const totalStorage = files.reduce((sum, file) => sum + file.size, 0);
-  const fileStats = {
-    total: files.length,
-    lastUploaded: files.length > 0 ? new Date(Math.max(...files.map(f => new Date(f.uploadDate).getTime()))) : null
-  };
+  const filteredFiles = files.filter(file =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredSharedFiles = sharedFiles.filter(file =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-48 mx-auto mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b bg-white/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-primary">FileVault</h1>
-              <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>{user?.name}</span>
+            <div className="flex items-center space-x-4">
+              <h1 className="text-2xl font-bold text-primary">File Haven</h1>
+              <div className="text-sm text-muted-foreground">
+                Welcome back, {profile?.full_name || user?.email}
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
+            <div className="flex items-center space-x-2">
               <ThemeToggle />
-              <Link to="/settings">
-                <Button variant="outline" size="icon">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Button 
-                variant="outline" 
-                onClick={handleLogout}
-                className="transition-transform hover:scale-105"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/settings')}
               >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -157,139 +164,84 @@ export const Dashboard: React.FC = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8 animate-fade-in">
-          <div className="flex items-center gap-3 mb-3">
-            <Avatar className="h-12 w-12">
-              <AvatarFallback className="text-lg bg-primary text-primary-foreground">
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h2 className="text-3xl font-bold">
-                {getGreeting()}, {user?.name?.split(' ')[0]}! 👋
-              </h2>
-              <p className="text-muted-foreground">{dailyQuote}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-3">
+            <div className="mb-8">
+              <FileUpload onFileUploaded={handleFileUploaded} />
             </div>
-          </div>
-        </div>
 
-        {/* Stats and Storage */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <File className="h-4 w-4" />
-                Total Files
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{fileStats.total}</div>
-              <p className="text-xs text-muted-foreground">files stored</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4" />
-                Last Upload
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm font-medium">
-                {fileStats.lastUploaded 
-                  ? fileStats.lastUploaded.toLocaleDateString() 
-                  : 'No uploads yet'
-                }
-              </div>
-              <p className="text-xs text-muted-foreground">most recent</p>
-            </CardContent>
-          </Card>
-
-          <div className="md:col-span-2">
-            <StorageQuota usedStorage={totalStorage} />
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Manage your files efficiently</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button className="hover:scale-105 transition-transform">
-                <Plus className="h-4 w-4 mr-2" />
-                Upload Files
-              </Button>
-              <Button variant="outline" className="hover:scale-105 transition-transform">
-                <FolderPlus className="h-4 w-4 mr-2" />
-                New Folder
-              </Button>
-              <Button variant="outline" className="hover:scale-105 transition-transform">
-                <Clock className="h-4 w-4 mr-2" />
-                Recent Activity
-              </Button>
-              <Button variant="outline" className="hover:scale-105 transition-transform">
-                <Star className="h-4 w-4 mr-2" />
-                Starred Files
-              </Button>
+            <div className="mb-6">
+              <FileSearch
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                totalFiles={files.length}
+              />
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Upload Section */}
-        <div className="mb-8 animate-fade-in">
-          <FileUpload onFileUploaded={handleFileUploaded} />
-        </div>
+            <Tabs defaultValue="my-files" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="my-files" className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  My Files ({filteredFiles.length})
+                </TabsTrigger>
+                <TabsTrigger value="shared" className="flex items-center gap-2">
+                  <Share2 className="h-4 w-4" />
+                  Shared with Me ({filteredSharedFiles.length})
+                </TabsTrigger>
+              </TabsList>
 
-        {/* Search and Filter */}
-        <div className="mb-6">
-          <FileSearch
-            onSearch={setSearchQuery}
-            onFilter={setFilterType}
-            currentFilter={filterType}
-          />
-        </div>
+              <TabsContent value="my-files">
+                {filteredFiles.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Upload className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No files found</h3>
+                    <p className="text-muted-foreground">
+                      {searchQuery
+                        ? 'No files match your search criteria.'
+                        : 'Upload your first file to get started.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredFiles.map((file) => (
+                      <FileCard
+                        key={file.id}
+                        file={file}
+                        onDelete={handleFileDeleted}
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
 
-        {/* Files Grid */}
-        <div className="animate-fade-in">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold">Your Files</h3>
-            <span className="text-sm text-muted-foreground">
-              {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} 
-              {searchQuery && ` matching "${searchQuery}"`}
-            </span>
+              <TabsContent value="shared">
+                {filteredSharedFiles.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Share2 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No shared files</h3>
+                    <p className="text-muted-foreground">
+                      Files shared with you will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredSharedFiles.map((file) => (
+                      <FileCard
+                        key={file.id}
+                        file={file}
+                        onDelete={handleFileDeleted}
+                        isShared
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
-          {filteredFiles.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <File className="mx-auto h-16 w-16 mb-4 opacity-50" />
-              {searchQuery ? (
-                <>
-                  <h4 className="text-lg font-medium mb-2">No files found</h4>
-                  <p>Try adjusting your search or filter criteria</p>
-                </>
-              ) : (
-                <>
-                  <h4 className="text-lg font-medium mb-2">No files yet – Let's get productive! 🚀</h4>
-                  <p>Upload your first file to get started organizing your digital life</p>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredFiles.map((file) => (
-                <FileCard
-                  key={file.id}
-                  file={file}
-                  onDelete={handleDeleteFile}
-                />
-              ))}
-            </div>
-          )}
+          <div className="lg:col-span-1">
+            <StorageQuota files={files} />
+          </div>
         </div>
       </main>
     </div>

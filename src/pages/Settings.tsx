@@ -1,272 +1,315 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, Upload, Loader2, User, Lock, Camera } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-export const Settings: React.FC = () => {
-  const { user, updateUser } = useAuth();
-  const { theme, setTheme } = useTheme();
+export const Settings = () => {
+  const { user, profile, updateProfile, updatePassword } = useAuth();
   const { toast } = useToast();
-  const [displayName, setDisplayName] = useState(user?.name || '');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [defaultViewMode, setDefaultViewMode] = useState(
-    localStorage.getItem('defaultViewMode') || 'grid'
-  );
-  const [emailReminders, setEmailReminders] = useState(
-    localStorage.getItem('emailReminders') !== 'false'
-  );
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const handleSaveProfile = () => {
-    if (displayName.trim() !== user?.name) {
-      updateUser({ ...user!, name: displayName.trim() });
-      toast({
-        title: "Profile updated",
-        description: "Your display name has been updated successfully.",
+  const [profileForm, setProfileForm] = useState({
+    full_name: profile?.full_name || '',
+  });
+
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await updateProfile({
+        full_name: profileForm.full_name,
       });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been updated successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Update failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleChangePassword = () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({
-        title: "Error",
-        description: "Please fill in all password fields.",
-        variant: "destructive",
+        title: 'Passwords do not match',
+        description: 'Please ensure both passwords are identical.',
+        variant: 'destructive',
       });
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (passwordForm.newPassword.length < 6) {
       toast({
-        title: "Error",
-        description: "New password and confirmation don't match.",
-        variant: "destructive",
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters long.',
+        variant: 'destructive',
       });
       return;
     }
 
-    if (currentPassword !== user?.password) {
+    setLoading(true);
+
+    try {
+      const { error } = await updatePassword(passwordForm.newPassword);
+
+      if (error) {
+        throw error;
+      }
+
       toast({
-        title: "Error",
-        description: "Current password is incorrect.",
-        variant: "destructive",
+        title: 'Password updated',
+        description: 'Your password has been updated successfully.',
+      });
+
+      setPasswordForm({
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Password update failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select an image file.',
+        variant: 'destructive',
       });
       return;
     }
 
-    updateUser({ ...user!, password: newPassword });
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    
-    toast({
-      title: "Password updated",
-      description: "Your password has been changed successfully.",
-    });
-  };
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an image smaller than 2MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'neo') => {
-    setTheme(newTheme);
-    localStorage.setItem('defaultTheme', newTheme);
-    toast({
-      title: "Theme updated",
-      description: `Switched to ${newTheme} theme as default.`,
-    });
-  };
+    setAvatarUploading(true);
 
-  const handleViewModeChange = (mode: string) => {
-    setDefaultViewMode(mode);
-    localStorage.setItem('defaultViewMode', mode);
-    toast({
-      title: "View mode updated",
-      description: `Default view mode set to ${mode}.`,
-    });
-  };
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
 
-  const handleEmailRemindersToggle = () => {
-    const newValue = !emailReminders;
-    setEmailReminders(newValue);
-    localStorage.setItem('emailReminders', newValue.toString());
-    toast({
-      title: "Preferences updated",
-      description: `Email reminders ${newValue ? 'enabled' : 'disabled'}.`,
-    });
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await updateProfile({
+        avatar_url: publicUrl,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      toast({
+        title: 'Avatar updated',
+        description: 'Your profile picture has been updated successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Upload failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
+      <header className="border-b bg-white/50 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
             </Button>
-          </Link>
-          <h1 className="text-2xl font-bold text-primary">Settings</h1>
+            <h1 className="text-2xl font-bold">Settings</h1>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
-          {/* Profile Section */}
+          {/* Profile Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal information and profile picture</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Settings
+              </CardTitle>
+              <CardDescription>
+                Update your profile information and avatar.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center gap-6">
+              {/* Avatar Upload */}
+              <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="" />
+                  <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback className="text-lg">
-                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Photo
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Remove
-                  </Button>
+                <div>
+                  <Label
+                    htmlFor="avatar-upload"
+                    className="cursor-pointer inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3 rounded-md text-sm font-medium transition-colors"
+                  >
+                    {avatarUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                    {avatarUploading ? 'Uploading...' : 'Change Avatar'}
+                  </Label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                    disabled={avatarUploading}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    JPG, PNG or GIF. Max size 2MB.
+                  </p>
                 </div>
               </div>
-              
-              <div className="grid gap-4">
+
+              {/* Profile Form */}
+              <form onSubmit={handleProfileUpdate} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
+                  <Label htmlFor="full-name">Full Name</Label>
                   <Input
-                    id="displayName"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Enter your display name"
+                    id="full-name"
+                    type="text"
+                    value={profileForm.full_name}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, full_name: e.target.value }))}
+                    placeholder="Enter your full name"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
-                    value={user?.email}
+                    type="email"
+                    value={user?.email || ''}
                     disabled
                     className="bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Email cannot be changed at this time.
+                  </p>
                 </div>
-              </div>
-              
-              <Button onClick={handleSaveProfile}>Save Profile</Button>
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Update Profile
+                </Button>
+              </form>
             </CardContent>
           </Card>
 
-          {/* Password Section */}
+          {/* Password Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Change Password</CardTitle>
-              <CardDescription>Update your account password</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <Input
-                  id="currentPassword"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-              <Button onClick={handleChangePassword}>Change Password</Button>
-            </CardContent>
-          </Card>
-
-          {/* Theme Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Theme Preferences</CardTitle>
-              <CardDescription>Choose your default theme</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Change Password
+              </CardTitle>
+              <CardDescription>
+                Update your password to keep your account secure.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                {(['light', 'dark', 'neo'] as const).map((themeOption) => (
-                  <button
-                    key={themeOption}
-                    onClick={() => handleThemeChange(themeOption)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      theme === themeOption ? 'border-primary' : 'border-border'
-                    }`}
-                  >
-                    <div className="text-sm font-medium capitalize">{themeOption} Theme</div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* App Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle>App Preferences</CardTitle>
-              <CardDescription>Customize your app experience</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label className="text-base font-medium">Default View Mode</Label>
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    variant={defaultViewMode === 'grid' ? 'default' : 'outline'}
-                    onClick={() => handleViewModeChange('grid')}
-                  >
-                    Grid
-                  </Button>
-                  <Button
-                    variant={defaultViewMode === 'list' ? 'default' : 'outline'}
-                    onClick={() => handleViewModeChange('list')}
-                  >
-                    List
-                  </Button>
+              <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    placeholder="Enter new password"
+                  />
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base font-medium">Email Reminders</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications about your files</p>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm New Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Confirm new password"
+                  />
                 </div>
-                <Button
-                  variant={emailReminders ? 'default' : 'outline'}
-                  onClick={handleEmailRemindersToggle}
-                >
-                  {emailReminders ? 'Enabled' : 'Disabled'}
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Update Password
                 </Button>
-              </div>
+              </form>
             </CardContent>
           </Card>
         </div>
