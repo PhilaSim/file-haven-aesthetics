@@ -24,25 +24,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile using direct SQL query since profiles table might not be in types yet
-          const { data: profileData } = await supabase
-            .rpc('get_profile', { user_id: session.user.id })
+          // Fetch user profile from profiles table
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
             .single();
           
-          // If RPC doesn't exist, try a direct query
-          if (!profileData) {
-            const { data } = await supabase
-              .from('profiles' as any)
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            setProfile(data);
-          } else {
+          if (!error && profileData) {
             setProfile(profileData);
+          } else {
+            console.log('Profile fetch error or no profile found:', error);
           }
         } else {
           setProfile(null);
@@ -54,20 +51,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
         supabase
-          .from('profiles' as any)
+          .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: profileData }) => {
-            setProfile(profileData);
-            setLoading(false);
-          })
-          .catch(() => {
+          .then(({ data: profileData, error }) => {
+            if (!error && profileData) {
+              setProfile(profileData);
+            }
             setLoading(false);
           });
       } else {
@@ -109,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { error: new Error('No user found') };
 
     const { error } = await supabase
-      .from('profiles' as any)
+      .from('profiles')
       .update(updates)
       .eq('id', user.id);
 

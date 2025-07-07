@@ -1,21 +1,21 @@
 
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { FileItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Upload, File, X } from 'lucide-react';
+import { FileItem } from '@/types';
 
 interface FileUploadProps {
   onFileUploaded: (file: FileItem) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
-  const { user } = useAuth();
+  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
-  const [isUploading, setIsUploading] = useState(false);
+  const { user } = useAuth();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) {
@@ -27,18 +27,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
       return;
     }
 
-    setIsUploading(true);
-    
-    for (const file of acceptedFiles) {
-      try {
-        // Create unique file path
+    setUploading(true);
+
+    try {
+      for (const file of acceptedFiles) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-        
-        // Upload file to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        // Upload file to storage
+        const { error: uploadError } = await supabase.storage
           .from('user-files')
-          .upload(fileName, file);
+          .upload(filePath, file);
 
         if (uploadError) {
           throw uploadError;
@@ -47,18 +47,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
           .from('user-files')
-          .getPublicUrl(fileName);
+          .getPublicUrl(filePath);
 
-        // Save file metadata to database using correct column names
+        // Insert file metadata into database
         const { data: fileData, error: dbError } = await supabase
           .from('files')
           .insert({
+            file_name: file.name,
+            path: filePath,
             user_id: user.id,
-            name: file.name,
-            size: file.size,
-            mime_type: file.type,
-            storage_path: fileName,
-            public_url: publicUrl,
           })
           .select()
           .single();
@@ -67,67 +64,70 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           throw dbError;
         }
 
-        onFileUploaded(fileData);
-        
+        // Convert to FileItem format
+        const newFile: FileItem = {
+          id: fileData.id,
+          user_id: fileData.user_id,
+          name: fileData.file_name,
+          size: file.size,
+          mime_type: file.type,
+          storage_path: fileData.path,
+          public_url: publicUrl,
+          created_at: fileData.uploaded_at || new Date().toISOString(),
+          updated_at: fileData.uploaded_at || new Date().toISOString(),
+        };
+
+        onFileUploaded(newFile);
+
         toast({
           title: 'File uploaded successfully',
-          description: `${file.name} has been added to your vault.`,
-        });
-      } catch (error: any) {
-        console.error('Upload error:', error);
-        toast({
-          title: 'Upload failed',
-          description: `Failed to upload ${file.name}: ${error.message}`,
-          variant: 'destructive',
+          description: `${file.name} has been uploaded.`,
         });
       }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload file.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
     }
-    
-    setIsUploading(false);
   }, [user, onFileUploaded, toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    multiple: true,
-    maxSize: 50 * 1024 * 1024, // 50MB limit
+    disabled: uploading,
   });
 
   return (
     <div
       {...getRootProps()}
-      className={`
-        border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
-        transition-all duration-300 hover:scale-[1.02]
-        ${isDragActive 
-          ? 'border-primary bg-primary/10' 
-          : 'border-border hover:border-primary'
-        }
-        ${isUploading ? 'opacity-50 pointer-events-none' : ''}
-      `}
+      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        isDragActive
+          ? 'border-primary bg-primary/5'
+          : 'border-gray-300 hover:border-gray-400'
+      } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <input {...getInputProps()} />
-      {isUploading ? (
-        <>
-          <Loader2 className="mx-auto h-12 w-12 mb-4 text-primary animate-spin" />
-          <h3 className="text-lg font-semibold mb-2">Uploading files...</h3>
-          <p className="text-muted-foreground">Please wait while your files are being uploaded</p>
-        </>
+      <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+      {isDragActive ? (
+        <p className="text-lg">Drop the files here...</p>
       ) : (
-        <>
-          <Upload className="mx-auto h-12 w-12 mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">
-            {isDragActive ? 'Drop files here' : 'Upload Files'}
-          </h3>
-          <p className="text-muted-foreground mb-4">
+        <div>
+          <p className="text-lg mb-2">
             Drag & drop files here, or click to select files
           </p>
-          <Button variant="outline" disabled={isUploading}>
-            Choose Files
-          </Button>
-          <p className="text-xs text-muted-foreground mt-2">
-            Maximum file size: 50MB
+          <p className="text-sm text-gray-500">
+            Supports: PDF, Images, Documents
           </p>
-        </>
+        </div>
+      )}
+      {uploading && (
+        <div className="mt-4">
+          <p className="text-sm text-gray-600">Uploading...</p>
+        </div>
       )}
     </div>
   );
