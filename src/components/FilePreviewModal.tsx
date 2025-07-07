@@ -20,16 +20,16 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 }) => {
   if (!file) return null;
 
-  const isImage = file.type.startsWith('image/');
-  const isPdf = file.type === 'application/pdf';
-  const isText = file.type.startsWith('text/') || file.name.endsWith('.txt');
+  const isImage = file.mime_type.startsWith('image/');
+  const isPdf = file.mime_type === 'application/pdf';
+  const isText = file.mime_type.startsWith('text/') || file.name.endsWith('.txt');
 
   const renderPreview = () => {
-    if (isImage) {
+    if (isImage && file.public_url) {
       return (
         <div className="flex justify-center">
           <img
-            src={file.url}
+            src={file.public_url}
             alt={file.name}
             className="max-w-full max-h-96 object-contain rounded-lg"
           />
@@ -86,12 +86,12 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
               </div>
               <div>
                 <span className="font-medium">Type:</span>
-                <p className="text-muted-foreground">{file.type}</p>
+                <p className="text-muted-foreground">{file.mime_type}</p>
               </div>
               <div>
                 <span className="font-medium">Uploaded:</span>
                 <p className="text-muted-foreground">
-                  {new Date(file.uploadDate).toLocaleDateString()}
+                  {new Date(file.created_at).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex justify-end">

@@ -49,7 +49,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           .from('user-files')
           .getPublicUrl(fileName);
 
-        // Save file metadata to database
+        // Save file metadata to database using correct column names
         const { data: fileData, error: dbError } = await supabase
           .from('files')
           .insert({

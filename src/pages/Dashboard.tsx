@@ -54,16 +54,22 @@ export const Dashboard = () => {
 
   const loadSharedFiles = async () => {
     try {
+      // Since file_shares table might not be in the types, we'll use a simplified approach for now
       const { data, error } = await supabase
-        .from('file_shares')
+        .from('file_shares' as any)
         .select(`
           *,
           files (*)
         `)
         .eq('shared_with', user?.id);
 
-      if (error) throw error;
-      setSharedFiles(data?.map(share => share.files).filter(Boolean) || []);
+      if (error) {
+        console.error('Error loading shared files:', error);
+        return;
+      }
+      
+      const sharedFileData = data?.map((share: any) => share.files).filter(Boolean) || [];
+      setSharedFiles(sharedFileData);
     } catch (error: any) {
       console.error('Error loading shared files:', error);
     }
@@ -99,8 +105,42 @@ export const Dashboard = () => {
     setFiles(prev => [newFile, ...prev]);
   };
 
-  const handleFileDeleted = (fileId: string) => {
-    setFiles(prev => prev.filter(file => file.id !== fileId));
+  const handleFileDeleted = async (fileId: string) => {
+    try {
+      // Find the file to get its storage path
+      const fileToDelete = files.find(f => f.id === fileId);
+      if (!fileToDelete) return;
+
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('user-files')
+        .remove([fileToDelete.storage_path]);
+
+      if (storageError) {
+        console.error('Storage deletion error:', storageError);
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', fileId);
+
+      if (dbError) throw dbError;
+
+      setFiles(prev => prev.filter(file => file.id !== fileId));
+      
+      toast({
+        title: 'File deleted',
+        description: 'File has been permanently deleted.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Delete failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleLogout = async () => {

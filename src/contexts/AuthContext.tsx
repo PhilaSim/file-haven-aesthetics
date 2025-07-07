@@ -28,14 +28,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
+          // Fetch user profile using direct SQL query since profiles table might not be in types yet
           const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
+            .rpc('get_profile', { user_id: session.user.id })
             .single();
           
-          setProfile(profileData);
+          // If RPC doesn't exist, try a direct query
+          if (!profileData) {
+            const { data } = await supabase
+              .from('profiles' as any)
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            setProfile(data);
+          } else {
+            setProfile(profileData);
+          }
         } else {
           setProfile(null);
         }
@@ -51,12 +59,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (session?.user) {
         supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('*')
           .eq('id', session.user.id)
           .single()
           .then(({ data: profileData }) => {
             setProfile(profileData);
+            setLoading(false);
+          })
+          .catch(() => {
             setLoading(false);
           });
       } else {
@@ -98,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { error: new Error('No user found') };
 
     const { error } = await supabase
-      .from('profiles')
+      .from('profiles' as any)
       .update(updates)
       .eq('id', user.id);
 

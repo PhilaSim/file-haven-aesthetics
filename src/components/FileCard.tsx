@@ -4,14 +4,15 @@ import { FileItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { FileTypeIcon } from './FileTypeIcon';
 import { FilePreviewModal } from './FilePreviewModal';
-import { Eye, Download, Trash2, Tag } from 'lucide-react';
+import { Eye, Download, Trash2 } from 'lucide-react';
 
 interface FileCardProps {
   file: FileItem;
   onDelete: (fileId: string) => void;
+  isShared?: boolean;
 }
 
-export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
+export const FileCard: React.FC<FileCardProps> = ({ file, onDelete, isShared = false }) => {
   const [showPreview, setShowPreview] = useState(false);
 
   const formatFileSize = (bytes: number) => {
@@ -27,12 +28,14 @@ export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
   };
 
   const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = file.url;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (file.public_url) {
+      const link = document.createElement('a');
+      link.href = file.public_url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handlePreview = () => {
@@ -45,7 +48,7 @@ export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
         <div className="flex items-start gap-3">
           <FileTypeIcon 
             filename={file.name} 
-            mimeType={file.type} 
+            mimeType={file.mime_type} 
             className="h-8 w-8 flex-shrink-0 mt-1" 
           />
           <div className="flex-1 min-w-0">
@@ -54,19 +57,10 @@ export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
               {file.name}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              {formatFileSize(file.size)} • {formatDate(file.uploadDate)}
+              {formatFileSize(file.size)} • {formatDate(file.created_at)}
             </p>
-            {file.tags && file.tags.length > 0 && (
-              <div className="flex items-center gap-1 mt-2">
-                <Tag className="h-3 w-3 text-muted-foreground" />
-                <div className="flex gap-1 flex-wrap">
-                  {file.tags.map((tag, index) => (
-                    <span key={index} className="text-xs bg-accent px-1.5 py-0.5 rounded">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {isShared && (
+              <p className="text-xs text-blue-600 mt-1">Shared with you</p>
             )}
           </div>
         </div>
@@ -89,15 +83,17 @@ export const FileCard: React.FC<FileCardProps> = ({ file, onDelete }) => {
             <Download className="h-3 w-3 mr-1" />
             Download
           </Button>
-          <Button 
-            size="sm" 
-            variant="destructive" 
-            onClick={() => onDelete(file.id)}
-            className="text-xs hover:scale-105 transition-transform"
-          >
-            <Trash2 className="h-3 w-3 mr-1" />
-            Delete
-          </Button>
+          {!isShared && (
+            <Button 
+              size="sm" 
+              variant="destructive" 
+              onClick={() => onDelete(file.id)}
+              className="text-xs hover:scale-105 transition-transform"
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 
