@@ -8,7 +8,7 @@ import { FileCard } from '@/components/FileCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Settings, Upload, Search } from 'lucide-react';
+import { LogOut, Settings, Upload, Search, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 
@@ -188,131 +188,179 @@ export const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">FH</span>
+    <div className="min-h-screen bg-background">
+      {/* Header with gradient */}
+      <header className="sticky top-0 z-50 border-b border-border/50 backdrop-blur-xl bg-background/80">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg">
+                  <span className="text-primary-foreground font-bold text-lg">FH</span>
+                </div>
+                <div className="absolute inset-0 rounded-xl bg-primary/20 blur-lg scale-150 opacity-50" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">File Haven</h1>
+                <p className="text-sm text-muted-foreground">Your secure file storage</p>
+              </div>
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">File Haven</h1>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowUpload(!showUpload)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/settings')}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+            
+            <div className="flex items-center gap-3">
+              <Button
+                variant={showUpload ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowUpload(!showUpload)}
+                className="hover:scale-105 transition-all duration-200 hover:shadow-lg"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/settings')}
+                className="hover:scale-105 transition-all duration-200 hover:shadow-lg"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="hover:scale-105 transition-all duration-200 hover:shadow-lg"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Upload Section */}
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Upload Section with enhanced styling */}
         {showUpload && (
-          <div className="mb-8">
-            <FileUpload onFileUploaded={handleFileUploaded} />
+          <div className="animate-slide-up">
+            <div className="p-1 rounded-2xl bg-gradient-to-r from-primary/20 to-accent/20">
+              <div className="rounded-xl bg-background p-6">
+                <FileUpload onFileUploaded={handleFileUploaded} />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search files..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        {/* Enhanced Search */}
+        <div className="relative max-w-md">
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 blur-xl opacity-50" />
+          <div className="relative bg-background/50 backdrop-blur-sm rounded-xl border border-border/50 p-1">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search your files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 border-0 bg-transparent focus:ring-2 focus:ring-primary/20 rounded-lg"
+              />
+            </div>
           </div>
         </div>
 
-        {/* File Tabs */}
+        {/* Enhanced File Tabs */}
         <Tabs defaultValue="my-files" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="my-files">
-              My Files ({files.length})
-            </TabsTrigger>
-            <TabsTrigger value="shared">
-              Shared with Me ({sharedFiles.length})
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex justify-center mb-8">
+            <TabsList className="grid w-full grid-cols-2 max-w-md p-1 bg-muted/50 backdrop-blur-sm rounded-xl">
+              <TabsTrigger 
+                value="my-files"
+                className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200"
+              >
+                <span className="font-medium">My Files</span>
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary">{files.length}</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="shared"
+                className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200"
+              >
+                <span className="font-medium">Shared</span>
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-accent/10 text-accent-foreground">{sharedFiles.length}</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="my-files" className="mt-6">
+          <TabsContent value="my-files" className="space-y-6">
             {filteredFiles.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <Upload className="h-16 w-16 mx-auto" />
+              <div className="text-center py-20">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 rounded-full bg-primary/10 blur-3xl scale-150 opacity-50" />
+                  <div className="relative bg-gradient-to-br from-muted to-accent/20 rounded-full p-8 w-32 h-32 mx-auto flex items-center justify-center">
+                    <Upload className="h-12 w-12 text-muted-foreground animate-bounce-gentle" />
+                  </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-2xl font-semibold mb-3 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
                   No files yet
                 </h3>
-                <p className="text-gray-500 mb-4">
-                  Upload your first file to get started
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                  Upload your first file to get started with your secure cloud storage
                 </p>
-                <Button onClick={() => setShowUpload(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Files
+                <Button 
+                  onClick={() => setShowUpload(true)}
+                  className="hover:scale-105 transition-all duration-200 hover:shadow-lg px-8 py-3"
+                  size="lg"
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  Upload Your First File
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredFiles.map((file) => (
-                  <FileCard
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
+                {filteredFiles.map((file, index) => (
+                  <div 
                     key={file.id}
-                    file={file}
-                    onDelete={handleDeleteFile}
-                    isShared={false}
-                  />
+                    className="animate-scale-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <FileCard
+                      file={file}
+                      onDelete={handleDeleteFile}
+                      isShared={false}
+                    />
+                  </div>
                 ))}
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="shared" className="mt-6">
+          <TabsContent value="shared" className="space-y-6">
             {filteredSharedFiles.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <Upload className="h-16 w-16 mx-auto" />
+              <div className="text-center py-20">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 rounded-full bg-accent/10 blur-3xl scale-150 opacity-50" />
+                  <div className="relative bg-gradient-to-br from-muted to-primary/20 rounded-full p-8 w-32 h-32 mx-auto flex items-center justify-center">
+                    <Users className="h-12 w-12 text-muted-foreground" />
+                  </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-2xl font-semibold mb-3 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
                   No shared files
                 </h3>
-                <p className="text-gray-500">
-                  Files shared with you will appear here
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Files shared with you will appear here when others invite you to collaborate
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredSharedFiles.map((file) => (
-                  <FileCard
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
+                {filteredSharedFiles.map((file, index) => (
+                  <div 
                     key={file.id}
-                    file={file}
-                    onDelete={() => {}} // Can't delete shared files
-                    isShared={true}
-                  />
+                    className="animate-scale-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <FileCard
+                      file={file}
+                      onDelete={() => {}} // Can't delete shared files
+                      isShared={true}
+                    />
+                  </div>
                 ))}
               </div>
             )}

@@ -44,56 +44,79 @@ export const FileCard: React.FC<FileCardProps> = ({ file, onDelete, isShared = f
 
   return (
     <>
-      <div className="group p-4 border rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 bg-card animate-fade-in">
-        <div className="flex items-start gap-3">
-          <FileTypeIcon 
-            filename={file.name} 
-            mimeType={file.mime_type} 
-            className="h-8 w-8 flex-shrink-0 mt-1" 
-          />
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-sm truncate hover:text-primary transition-colors cursor-pointer" 
-                onClick={handlePreview}>
-              {file.name}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatFileSize(file.size)} • {formatDate(file.created_at)}
-            </p>
-            {isShared && (
-              <p className="text-xs text-blue-600 mt-1">Shared with you</p>
-            )}
+      <div className="group relative p-6 rounded-xl border border-border/50 card-gradient hover-lift animate-fade-in backdrop-blur-sm">
+        {/* Subtle glow effect on hover */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-all duration-500" />
+        
+        <div className="relative">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="relative">
+              <FileTypeIcon 
+                filename={file.name} 
+                mimeType={file.mime_type} 
+                className="h-10 w-10 flex-shrink-0 transition-transform group-hover:scale-110 duration-300" 
+              />
+              {/* Icon glow effect */}
+              <div className="absolute inset-0 rounded-full bg-current opacity-20 blur-lg scale-150 group-hover:opacity-30 transition-opacity duration-300" />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base truncate hover:text-primary transition-colors cursor-pointer group-hover:translate-x-1 duration-300" 
+                  onClick={handlePreview}>
+                {file.name}
+              </h3>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                  {formatFileSize(file.size)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(file.created_at)}
+                </span>
+              </div>
+              {isShared && (
+                <div className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  Shared with you
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={handlePreview}
-            className="text-xs hover:scale-105 transition-transform"
-          >
-            <Eye className="h-3 w-3 mr-1" />
-            Preview
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={handleDownload}
-            className="text-xs hover:scale-105 transition-transform"
-          >
-            <Download className="h-3 w-3 mr-1" />
-            Download
-          </Button>
-          {!isShared && (
+          
+          {/* Action buttons with staggered animation */}
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
             <Button 
               size="sm" 
-              variant="destructive" 
-              onClick={() => onDelete(file.id)}
-              className="text-xs hover:scale-105 transition-transform"
+              variant="outline" 
+              onClick={handlePreview}
+              className="text-xs hover:scale-105 hover:bg-primary hover:text-primary-foreground transition-all duration-200 hover:shadow-lg"
+              style={{ transitionDelay: '50ms' }}
             >
-              <Trash2 className="h-3 w-3 mr-1" />
-              Delete
+              <Eye className="h-3 w-3 mr-1.5" />
+              Preview
             </Button>
-          )}
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleDownload}
+              className="text-xs hover:scale-105 hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:shadow-lg"
+              style={{ transitionDelay: '100ms' }}
+            >
+              <Download className="h-3 w-3 mr-1.5" />
+              Download
+            </Button>
+            {!isShared && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => onDelete(file.id)}
+                className="text-xs hover:scale-105 hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 hover:shadow-lg"
+                style={{ transitionDelay: '150ms' }}
+              >
+                <Trash2 className="h-3 w-3 mr-1.5" />
+                Delete
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

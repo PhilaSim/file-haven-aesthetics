@@ -18,41 +18,41 @@ export const FileTypeIcon: React.FC<FileTypeIconProps> = ({
     
     // Image files
     if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
-      return <Image className={`${className} text-green-500`} />;
+      return <Image className={`${className} text-emerald-500 drop-shadow-sm`} />;
     }
     
     // Video files
     if (mimeType.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(extension)) {
-      return <FileVideo className={`${className} text-purple-500`} />;
+      return <FileVideo className={`${className} text-purple-500 drop-shadow-sm`} />;
     }
     
     // Audio files
     if (mimeType.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'flac', 'aac'].includes(extension)) {
-      return <Music className={`${className} text-orange-500`} />;
+      return <Music className={`${className} text-orange-500 drop-shadow-sm`} />;
     }
     
     // Document files
     if (['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension)) {
-      return <FileText className={`${className} text-red-500`} />;
+      return <FileText className={`${className} text-red-500 drop-shadow-sm`} />;
     }
     
     // Presentation files
     if (['ppt', 'pptx', 'odp'].includes(extension)) {
-      return <Presentation className={`${className} text-blue-500`} />;
+      return <Presentation className={`${className} text-blue-500 drop-shadow-sm`} />;
     }
     
     // Archive files
     if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
-      return <Archive className={`${className} text-yellow-500`} />;
+      return <Archive className={`${className} text-amber-500 drop-shadow-sm`} />;
     }
     
     // Code files
     if (['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'java', 'cpp', 'c', 'php'].includes(extension)) {
-      return <Code className={`${className} text-cyan-500`} />;
+      return <Code className={`${className} text-cyan-500 drop-shadow-sm`} />;
     }
     
     // Default file icon
-    return <File className={`${className} text-gray-500`} />;
+    return <File className={`${className} text-muted-foreground drop-shadow-sm`} />;
   };
 
   return getFileIcon();
