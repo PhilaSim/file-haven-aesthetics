@@ -18,7 +18,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
   const { user } = useAuth();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    console.log('🚀 Upload started:', { acceptedFiles: acceptedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })) });
+    
     if (!user) {
+      console.error('❌ No user found - authentication required');
       toast({
         title: 'Authentication required',
         description: 'Please log in to upload files.',
@@ -27,30 +30,52 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
       return;
     }
 
+    console.log('✅ User authenticated:', { userId: user.id, email: user.email });
     setUploading(true);
 
     try {
       for (const file of acceptedFiles) {
+        console.log(`📁 Processing file: ${file.name} (${file.size} bytes, ${file.type})`);
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`File ${file.name} is too large. Max size is 10MB.`);
+        }
+
+        // Validate file type
+        const allowedTypes = ['image/', 'application/pdf', 'text/', 'application/msword', 'application/vnd.openxmlformats'];
+        if (!allowedTypes.some(type => file.type.startsWith(type))) {
+          throw new Error(`File ${file.name} has unsupported format: ${file.type}`);
+        }
+
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
+        
+        console.log(`🔄 Uploading to storage:`, { filePath, bucket: 'user-files' });
 
         // Upload file to storage
-        const { error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('user-files')
           .upload(filePath, file);
 
         if (uploadError) {
+          console.error('❌ Storage upload failed:', uploadError);
           throw uploadError;
         }
+
+        console.log('✅ Storage upload successful:', uploadData);
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
           .from('user-files')
           .getPublicUrl(filePath);
 
-        // Insert file metadata into database using raw query
-        const { data: fileData, error: dbError } = await (supabase as any)
+        console.log('🔗 Generated public URL:', publicUrl);
+
+        // Insert file metadata into database
+        console.log('💾 Inserting file metadata to database...');
+        const { data: fileData, error: dbError } = await supabase
           .from('files')
           .insert({
             file_name: file.name,
@@ -64,8 +89,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           .single();
 
         if (dbError) {
+          console.error('❌ Database insert failed:', dbError);
+          // Try to clean up the uploaded file
+          await supabase.storage.from('user-files').remove([filePath]);
           throw dbError;
         }
+
+        console.log('✅ Database insert successful:', fileData);
 
         // Convert to FileItem format
         const newFile: FileItem = {

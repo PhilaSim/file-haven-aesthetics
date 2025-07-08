@@ -192,10 +192,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_first_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       get_daily_signups: {
         Args: { days_back?: number }
         Returns: {
