@@ -32,17 +32,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Use a setTimeout to defer the Supabase call and prevent potential deadlocks
           setTimeout(async () => {
             try {
-              // Fetch user profile from profiles table using raw query
-              const { data: profileData, error } = await (supabase as any)
+              // Fetch user profile from profiles table using correct column name
+              const { data: profileData, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
               
               if (!error && profileData) {
                 setProfile(profileData as Profile);
-              } else {
-                console.log('Profile fetch error or no profile found:', error);
+              } else if (error) {
+                console.log('Profile fetch error:', error);
               }
             } catch (err) {
               console.log('Error fetching profile:', err);
@@ -63,21 +63,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Fetch profile for initial session
-        (supabase as any)
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profileData, error }: any) => {
+        // Fetch profile for initial session using correct column name
+        const fetchProfile = async () => {
+          try {
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
             if (!error && profileData) {
               setProfile(profileData as Profile);
             }
+          } catch (err) {
+            console.log('Error fetching initial profile:', err);
+          } finally {
             setLoading(false);
-          })
-          .catch(() => {
-            setLoading(false);
-          });
+          }
+        };
+        fetchProfile();
       } else {
         setLoading(false);
       }
@@ -95,17 +99,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    return { error };
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      // If user needs email confirmation, don't try to create profile yet
+      if (data.user && !data.user.email_confirmed_at) {
+        return { error: null };
+      }
+
+      return { error: null };
+    } catch (err) {
+      return { error: err };
+    }
   };
 
   const logout = async () => {
@@ -117,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { error: new Error('No user found') };
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
