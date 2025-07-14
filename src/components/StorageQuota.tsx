@@ -1,18 +1,44 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { HardDrive } from 'lucide-react';
+import { HardDrive, Database } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StorageQuotaProps {
-  usedStorage: number;
-  totalStorage?: number;
+  className?: string;
 }
 
-export const StorageQuota: React.FC<StorageQuotaProps> = ({ 
-  usedStorage, 
-  totalStorage = 1024 * 1024 * 1024 // 1GB default
-}) => {
+export const StorageQuota: React.FC<StorageQuotaProps> = ({ className = '' }) => {
+  const { user } = useAuth();
+  const [usedStorage, setUsedStorage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const totalStorage = 5 * 1024 * 1024 * 1024; // 5GB limit
+  useEffect(() => {
+    fetchStorageUsage();
+  }, [user]);
+
+  const fetchStorageUsage = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('files')
+        .select('size')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      const total = data?.reduce((sum, file) => sum + (file.size || 0), 0) || 0;
+      setUsedStorage(total);
+    } catch (error) {
+      console.error('Error fetching storage usage:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -30,8 +56,28 @@ export const StorageQuota: React.FC<StorageQuotaProps> = ({
     return 'bg-red-500';
   };
 
+  if (loading) {
+    return (
+      <Card className={className}>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Database className="h-4 w-4 animate-pulse" />
+            Storage Usage
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-muted rounded w-3/4"></div>
+            <div className="h-2 bg-muted rounded"></div>
+            <div className="h-3 bg-muted rounded w-1/2"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <HardDrive className="h-4 w-4" />
