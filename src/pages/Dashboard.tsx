@@ -10,9 +10,10 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Settings, Upload, Search, Files, Clock, Users, Plus, FolderOpen } from 'lucide-react';
+import { LogOut, Settings, Upload, Search, Files, Clock, Users, Plus, FolderOpen, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
+import { BinView } from '@/components/BinView';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -22,6 +23,7 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUpload, setShowUpload] = useState(false);
+  const [currentView, setCurrentView] = useState<'files' | 'bin'>('files');
 
   useEffect(() => {
     if (user) {
@@ -68,10 +70,11 @@ export const Dashboard = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('files')
         .select('*')
         .eq('user_id', user.id)
+        .is('deleted_at', null) // Only fetch non-deleted files
         .order('uploaded_at', { ascending: false });
 
       if (error) throw error;
@@ -125,29 +128,20 @@ export const Dashboard = () => {
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      const fileToDelete = files.find(f => f.id === fileId);
-      if (!fileToDelete) return;
-
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('user-files')
-        .remove([fileToDelete.storage_path]);
-
-      if (storageError) throw storageError;
-
-      // Delete from database
-      const { error: dbError } = await (supabase as any)
+      // Soft delete - just set deleted_at timestamp
+      const { error } = await supabase
         .from('files')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', fileId);
 
-      if (dbError) throw dbError;
+      if (error) throw error;
 
+      const deletedFile = files.find(f => f.id === fileId);
       setFiles(prev => prev.filter(file => file.id !== fileId));
       
       toast({
-        title: 'File deleted',
-        description: `${fileToDelete.name} has been deleted.`,
+        title: 'File moved to trash',
+        description: `${deletedFile?.name} has been moved to trash. You can restore it from the bin.`,
       });
     } catch (error: any) {
       console.error('Error deleting file:', error);
@@ -293,6 +287,24 @@ export const Dashboard = () => {
             <Settings className="h-5 w-5 mr-2" />
             Profile Settings
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentView(currentView === 'files' ? 'bin' : 'files')}
+            size="lg"
+            className="hover:scale-105 transition-all duration-200 px-8"
+          >
+            {currentView === 'files' ? (
+              <>
+                <Trash2 className="h-5 w-5 mr-2" />
+                View Trash
+              </>
+            ) : (
+              <>
+                <FolderOpen className="h-5 w-5 mr-2" />
+                View Files
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Upload Section */}
@@ -306,77 +318,84 @@ export const Dashboard = () => {
           </div>
         )}
 
-        {/* Search */}
-        <div className="max-w-md mx-auto">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search your files..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12"
-            />
-          </div>
-        </div>
-
-        {/* Recent Files Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-semibold flex items-center gap-2">
-              <FolderOpen className="h-6 w-6" />
-              {searchQuery ? 'Search Results' : 'Recent Files'}
-            </h3>
-            {files.length > 6 && !searchQuery && (
-              <Button variant="outline" size="sm">
-                View All Files
-              </Button>
-            )}
-          </div>
-
-          {(searchQuery ? filteredFiles : recentFiles).length === 0 ? (
-            <Card className="text-center py-16">
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-                    <Upload className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold mb-2">
-                      {searchQuery ? 'No files found' : 'No files yet'}
-                    </h4>
-                    <p className="text-muted-foreground mb-4">
-                      {searchQuery 
-                        ? 'Try adjusting your search terms' 
-                        : 'Start by uploading your first file'}
-                    </p>
-                    {!searchQuery && (
-                      <Button onClick={() => setShowUpload(true)}>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload File
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(searchQuery ? filteredFiles : recentFiles).map((file, index) => (
-                <div 
-                  key={file.id}
-                  className="animate-scale-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <FileCard
-                    file={file}
-                    onDelete={handleDeleteFile}
-                    isShared={false}
-                  />
-                </div>
-              ))}
+        {/* Content based on current view */}
+        {currentView === 'bin' ? (
+          <BinView />
+        ) : (
+          <>
+            {/* Search */}
+            <div className="max-w-md mx-auto">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search your files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12"
+                />
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* Recent Files Section */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-semibold flex items-center gap-2">
+                  <FolderOpen className="h-6 w-6" />
+                  {searchQuery ? 'Search Results' : 'Recent Files'}
+                </h3>
+                {files.length > 6 && !searchQuery && (
+                  <Button variant="outline" size="sm">
+                    View All Files
+                  </Button>
+                )}
+              </div>
+
+              {(searchQuery ? filteredFiles : recentFiles).length === 0 ? (
+                <Card className="text-center py-16">
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold mb-2">
+                          {searchQuery ? 'No files found' : 'No files yet'}
+                        </h4>
+                        <p className="text-muted-foreground mb-4">
+                          {searchQuery 
+                            ? 'Try adjusting your search terms' 
+                            : 'Start by uploading your first file'}
+                        </p>
+                        {!searchQuery && (
+                          <Button onClick={() => setShowUpload(true)}>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload File
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {(searchQuery ? filteredFiles : recentFiles).map((file, index) => (
+                    <div 
+                      key={file.id}
+                      className="animate-scale-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <FileCard
+                        file={file}
+                        onDelete={handleDeleteFile}
+                        isShared={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

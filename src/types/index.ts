@@ -24,6 +24,7 @@ export interface FileItem {
   public_url: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 export interface FileShare {

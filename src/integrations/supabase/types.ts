@@ -108,6 +108,7 @@ export type Database = {
       }
       files: {
         Row: {
+          deleted_at: string | null
           file_name: string
           id: string
           mime_type: string | null
@@ -118,6 +119,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          deleted_at?: string | null
           file_name: string
           id?: string
           mime_type?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          deleted_at?: string | null
           file_name?: string
           id?: string
           mime_type?: string | null
