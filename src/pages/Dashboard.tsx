@@ -307,19 +307,17 @@ export const Dashboard = () => {
               </>
             )}
           </Button>
-          {isAdmin && (
-            <Button
-              asChild
-              variant="secondary"
-              size="lg"
-              className="hover:scale-105 transition-all duration-200 px-8"
-            >
-              <Link to="/admin">
-                <Shield className="h-5 w-5 mr-2" />
-                Admin Dashboard
-              </Link>
-            </Button>
-          )}
+          <Button
+            asChild
+            variant="secondary"
+            size="lg"
+            className="hover:scale-105 transition-all duration-200 px-8"
+          >
+            <Link to="/admin">
+              <Shield className="h-5 w-5 mr-2" />
+              Admin Dashboard
+            </Link>
+          </Button>
         </div>
 
         {/* Upload Section */}
