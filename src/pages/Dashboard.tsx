@@ -10,8 +10,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Settings, Upload, Search, Files, Clock, Users, Plus, FolderOpen, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useAdminCheck } from '@/hooks/useAdminCheck';
+import { LogOut, Settings, Upload, Search, Files, Clock, Users, Plus, FolderOpen, Trash2, Shield } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { BinView } from '@/components/BinView';
 
@@ -19,6 +20,7 @@ export const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin } = useAdminCheck();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -305,6 +307,19 @@ export const Dashboard = () => {
               </>
             )}
           </Button>
+          {isAdmin && (
+            <Button
+              asChild
+              variant="secondary"
+              size="lg"
+              className="hover:scale-105 transition-all duration-200 px-8"
+            >
+              <Link to="/admin">
+                <Shield className="h-5 w-5 mr-2" />
+                Admin Dashboard
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* Upload Section */}
