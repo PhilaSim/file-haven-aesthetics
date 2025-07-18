@@ -79,7 +79,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           .from('files')
           .insert({
             file_name: file.name,
-            path: filePath,
+            storage_path: filePath,
             user_id: user.id,
             size: file.size,
             mime_type: file.type,
@@ -104,10 +104,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
           name: fileData.file_name,
           size: fileData.size || file.size,
           mime_type: fileData.mime_type || file.type,
-          storage_path: fileData.path,
+          storage_path: fileData.storage_path,
           public_url: fileData.public_url || publicUrl,
-          created_at: fileData.uploaded_at || new Date().toISOString(),
-          updated_at: fileData.uploaded_at || new Date().toISOString(),
+          created_at: fileData.created_at || new Date().toISOString(),
+          updated_at: fileData.updated_at || new Date().toISOString(),
         };
 
         onFileUploaded(newFile);

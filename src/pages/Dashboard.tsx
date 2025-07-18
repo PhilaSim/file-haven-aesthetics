@@ -46,10 +46,10 @@ export const Dashboard = () => {
                 name: payload.new.file_name,
                 size: payload.new.size || 0,
                 mime_type: payload.new.mime_type || '',
-                storage_path: payload.new.path,
+                storage_path: payload.new.storage_path,
                 public_url: payload.new.public_url,
-                created_at: payload.new.uploaded_at || new Date().toISOString(),
-                updated_at: payload.new.uploaded_at || new Date().toISOString(),
+                created_at: payload.new.created_at || new Date().toISOString(),
+                updated_at: payload.new.updated_at || new Date().toISOString(),
               };
               
               if (payload.new.user_id === user.id) {
@@ -76,8 +76,7 @@ export const Dashboard = () => {
         .from('files')
         .select('*')
         .eq('user_id', user.id)
-        .is('deleted_at', null) // Only fetch non-deleted files
-        .order('uploaded_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       
@@ -88,10 +87,10 @@ export const Dashboard = () => {
         name: file.file_name,
         size: file.size || 0,
         mime_type: file.mime_type || '',
-        storage_path: file.path,
+        storage_path: file.storage_path,
         public_url: file.public_url,
-        created_at: file.uploaded_at || new Date().toISOString(),
-        updated_at: file.uploaded_at || new Date().toISOString(),
+        created_at: file.created_at || new Date().toISOString(),
+        updated_at: file.updated_at || new Date().toISOString(),
       }));
       
       setFiles(convertedFiles);
@@ -130,10 +129,10 @@ export const Dashboard = () => {
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      // Soft delete - just set deleted_at timestamp
+      // Hard delete since we don't have deleted_at column
       const { error } = await supabase
         .from('files')
-        .update({ deleted_at: new Date().toISOString() })
+        .delete()
         .eq('id', fileId);
 
       if (error) throw error;
@@ -142,8 +141,8 @@ export const Dashboard = () => {
       setFiles(prev => prev.filter(file => file.id !== fileId));
       
       toast({
-        title: 'File moved to trash',
-        description: `${deletedFile?.name} has been moved to trash. You can restore it from the bin.`,
+        title: 'File deleted',
+        description: `${deletedFile?.name} has been deleted permanently.`,
       });
     } catch (error: any) {
       console.error('Error deleting file:', error);

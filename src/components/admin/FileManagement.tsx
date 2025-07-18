@@ -23,11 +23,10 @@ interface FileData {
   id: string;
   file_name: string;
   user_id: string;
-  uploaded_at: string;
+  created_at: string;
   public_url?: string;
   size?: number;
   mime_type?: string;
-  deleted_at?: string;
 }
 
 export const FileManagement = () => {
@@ -44,8 +43,8 @@ export const FileManagement = () => {
     try {
       const { data, error } = await supabase
         .from('files')
-        .select('id, file_name, user_id, uploaded_at, public_url, size, mime_type, deleted_at')
-        .order('uploaded_at', { ascending: false });
+        .select('id, file_name, user_id, created_at, public_url, size, mime_type')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setFiles(data || []);
@@ -116,8 +115,7 @@ export const FileManagement = () => {
     );
   }
 
-  const activeFiles = files.filter(file => !file.deleted_at);
-  const deletedFiles = files.filter(file => file.deleted_at);
+  const activeFiles = files; // All files are active since we don't have soft delete
 
   return (
     <Card>
@@ -127,7 +125,7 @@ export const FileManagement = () => {
           File Management
         </CardTitle>
         <CardDescription>
-          Total files: {files.length} | Active: {activeFiles.length} | Deleted: {deletedFiles.length}
+          Total files: {files.length}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -145,13 +143,13 @@ export const FileManagement = () => {
             </TableHeader>
             <TableBody>
               {files.map((file) => (
-                <TableRow key={file.id} className={file.deleted_at ? 'opacity-60' : ''}>
+                <TableRow key={file.id}>
                   <TableCell className="font-medium">{file.file_name}</TableCell>
                   <TableCell className="font-mono text-sm">
                     {file.user_id.slice(0, 8)}...
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(file.uploaded_at).toLocaleDateString('en-US', {
+                    {new Date(file.created_at).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -161,13 +159,11 @@ export const FileManagement = () => {
                   </TableCell>
                   <TableCell>{formatFileSize(file.size)}</TableCell>
                   <TableCell>
-                    <Badge variant={file.deleted_at ? 'destructive' : 'default'}>
-                      {file.deleted_at ? 'Deleted' : 'Active'}
-                    </Badge>
+                    <Badge variant="default">Active</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {file.public_url && !file.deleted_at && (
+                      {file.public_url && (
                         <Button
                           variant="outline"
                           size="sm"

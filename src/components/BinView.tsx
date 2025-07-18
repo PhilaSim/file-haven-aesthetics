@@ -37,30 +37,8 @@ export const BinView: React.FC = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('files')
-        .select('*')
-        .eq('user_id', user.id)
-        .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false });
-
-      if (error) throw error;
-      
-      // Convert database format to FileItem format
-      const convertedFiles: FileItem[] = data.map((file: any) => ({
-        id: file.id,
-        user_id: file.user_id,
-        name: file.file_name,
-        size: file.size || 0,
-        mime_type: file.mime_type || '',
-        storage_path: file.path,
-        public_url: file.public_url,
-        created_at: file.uploaded_at || new Date().toISOString(),
-        updated_at: file.uploaded_at || new Date().toISOString(),
-        deleted_at: file.deleted_at,
-      }));
-      
-      setDeletedFiles(convertedFiles);
+      // Since we don't have a deleted_at column, we'll just show an empty bin
+      setDeletedFiles([]);
     } catch (error: any) {
       console.error('Error fetching deleted files:', error);
       toast({
@@ -74,29 +52,12 @@ export const BinView: React.FC = () => {
   };
 
   const handleRestoreFile = async (fileId: string) => {
-    try {
-      const { error } = await supabase
-        .from('files')
-        .update({ deleted_at: null })
-        .eq('id', fileId);
-
-      if (error) throw error;
-
-      const restoredFile = deletedFiles.find(f => f.id === fileId);
-      setDeletedFiles(prev => prev.filter(file => file.id !== fileId));
-      
-      toast({
-        title: 'File restored',
-        description: `${restoredFile?.name} has been restored to your files.`,
-      });
-    } catch (error: any) {
-      console.error('Error restoring file:', error);
-      toast({
-        title: 'Error restoring file',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
+    // Since we don't have soft delete, this function won't be used
+    toast({
+      title: 'Feature not available',
+      description: 'File restoration is not available without soft delete.',
+      variant: 'destructive',
+    });
   };
 
   const handlePermanentDelete = async (fileId: string) => {
@@ -149,14 +110,8 @@ export const BinView: React.FC = () => {
         if (storageError) throw storageError;
       }
 
-      // Delete all from database
-      const { error: dbError } = await supabase
-        .from('files')
-        .delete()
-        .eq('user_id', user?.id)
-        .not('deleted_at', 'is', null);
-
-      if (dbError) throw dbError;
+      // Since we don't have soft delete, there's nothing to empty
+      // This is just for UI consistency
 
       setDeletedFiles([]);
       
@@ -330,9 +285,9 @@ export const BinView: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      Deleted {file.deleted_at ? new Date(file.deleted_at).toLocaleDateString() : 'Unknown'}
-                    </p>
+                     <p className="text-xs text-muted-foreground">
+                       Deleted recently
+                     </p>
                     <p className="text-xs text-muted-foreground">
                       Size: {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>

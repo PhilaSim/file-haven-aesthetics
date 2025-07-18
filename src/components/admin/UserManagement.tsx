@@ -22,31 +22,20 @@ export const UserManagement = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        // Get profiles data
+        // Get profiles data - only select fields that exist
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, full_name, role, created_at');
+          .select('id, role');
 
         if (profilesError) throw profilesError;
-
-        // Get admin data
-        const { data: admins, error: adminsError } = await supabase
-          .from('admins')
-          .select('user_id, role');
-
-        if (adminsError) throw adminsError;
-
-        // Get auth users (we'll need to get this from a view or function in production)
-        // For now, we'll work with what we have from profiles
-        const adminUserIds = new Set(admins?.map(admin => admin.user_id) || []);
 
         const usersData: User[] = profiles?.map(profile => ({
           id: profile.id,
           email: `user-${profile.id.slice(0, 8)}@example.com`, // Placeholder since we can't access auth.users
-          full_name: profile.full_name || 'Unknown User',
+          full_name: 'Unknown User', // Not available in current schema
           role: profile.role || 'user',
-          created_at: profile.created_at || '',
-          is_admin: adminUserIds.has(profile.id)
+          created_at: '',
+          is_admin: profile.role === 'admin'
         })) || [];
 
         setUsers(usersData);

@@ -17,9 +17,9 @@ export const useAdminCheck = () => {
 
       try {
         const { data, error } = await supabase
-          .from('admins')
+          .from('profiles')
           .select('role')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .eq('role', 'admin')
           .maybeSingle();
 

@@ -35,12 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Fetch user profile from profiles table using correct column name
               const { data: profileData, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id, role')
                 .eq('id', session.user.id)
                 .maybeSingle();
               
               if (!error && profileData) {
-                setProfile(profileData as Profile);
+                setProfile(profileData);
               } else if (error) {
                 console.log('Profile fetch error:', error);
               }
@@ -68,12 +68,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const { data: profileData, error } = await supabase
               .from('profiles')
-              .select('*')
+              .select('id, role')
               .eq('id', session.user.id)
               .maybeSingle();
             
             if (!error && profileData) {
-              setProfile(profileData as Profile);
+              setProfile(profileData);
             }
           } catch (err) {
             console.log('Error fetching initial profile:', err);

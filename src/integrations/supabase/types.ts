@@ -14,182 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      admins: {
-        Row: {
-          created_at: string
-          id: number
-          role: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: never
-          role?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: never
-          role?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      file_shares: {
-        Row: {
-          created_at: string | null
-          file_id: string
-          id: string
-          shared_by: string
-          shared_with: string
-        }
-        Insert: {
-          created_at?: string | null
-          file_id: string
-          id?: string
-          shared_by: string
-          shared_with: string
-        }
-        Update: {
-          created_at?: string | null
-          file_id?: string
-          id?: string
-          shared_by?: string
-          shared_with?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "file_shares_file_id_fkey"
-            columns: ["file_id"]
-            isOneToOne: false
-            referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      file_uploads: {
-        Row: {
-          created_at: string
-          file_name: string
-          file_path: string
-          file_size: number
-          file_type: string
-          id: number
-          public_url: string
-          uploaded_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          file_name: string
-          file_path: string
-          file_size: number
-          file_type: string
-          id?: never
-          public_url: string
-          uploaded_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          file_name?: string
-          file_path?: string
-          file_size?: number
-          file_type?: string
-          id?: never
-          public_url?: string
-          uploaded_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       files: {
         Row: {
-          deleted_at: string | null
+          created_at: string | null
           file_name: string
           id: string
-          mime_type: string | null
-          path: string
+          mime_type: string
           public_url: string | null
-          size: number | null
-          uploaded_at: string | null
-          user_id: string
-        }
-        Insert: {
-          deleted_at?: string | null
-          file_name: string
-          id?: string
-          mime_type?: string | null
-          path: string
-          public_url?: string | null
-          size?: number | null
-          uploaded_at?: string | null
-          user_id: string
-        }
-        Update: {
-          deleted_at?: string | null
-          file_name?: string
-          id?: string
-          mime_type?: string | null
-          path?: string
-          public_url?: string | null
-          size?: number | null
-          uploaded_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      MyFiles: {
-        Row: {
-          file_name: string | null
-          id: number
-          path: string | null
-          "upload-at": string | null
+          size: number
+          storage_path: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
-          file_name?: string | null
-          id?: number
-          path?: string | null
-          "upload-at"?: string | null
+          created_at?: string | null
+          file_name: string
+          id?: string
+          mime_type: string
+          public_url?: string | null
+          size: number
+          storage_path: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
-          file_name?: string | null
-          id?: number
-          path?: string | null
-          "upload-at"?: string | null
+          created_at?: string | null
+          file_name?: string
+          id?: string
+          mime_type?: string
+          public_url?: string | null
+          size?: number
+          storage_path?: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []
       }
       profiles: {
         Row: {
-          avatar_url: string | null
+          id: string
+          role: string | null
+        }
+        Insert: {
+          id: string
+          role?: string | null
+        }
+        Update: {
+          id?: string
+          role?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
           created_at: string | null
           full_name: string | null
           id: string
           role: string | null
-          updated_at: string | null
         }
         Insert: {
-          avatar_url?: string | null
           created_at?: string | null
           full_name?: string | null
           id: string
           role?: string | null
-          updated_at?: string | null
         }
         Update: {
-          avatar_url?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
           role?: string | null
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -198,12 +91,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_admin: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       get_daily_signups: {
         Args: { days_back?: number }
         Returns: {
           date: string
           count: number
         }[]
+      }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
     }
     Enums: {
