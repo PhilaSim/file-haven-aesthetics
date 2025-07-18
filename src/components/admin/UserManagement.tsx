@@ -4,15 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, UserCheck } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { formatDistanceToNow } from 'date-fns';
+import { Users, UserCheck, Files, Shield, Clock } from 'lucide-react';
 
 interface User {
   id: string;
   email?: string;
   full_name?: string;
+  display_name?: string;
+  avatar_url?: string;
   role?: string;
   created_at?: string;
-  is_admin: boolean;
+  file_count?: number;
 }
 
 export const UserManagement = () => {
@@ -22,23 +26,58 @@ export const UserManagement = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        // Get user data from the users table
-        const { data: users, error: usersError } = await supabase
+        // Get auth users with email info
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+        
+        if (authError) {
+          console.error('Error fetching auth users:', authError);
+          return;
+        }
+
+        // Get user profiles
+        const { data: profilesData, error: profilesError } = await supabase
           .from('users')
-          .select('id, full_name, display_name, role, created_at, avatar_url');
+          .select('*');
 
-        if (usersError) throw usersError;
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+          return;
+        }
 
-        const usersData: User[] = users?.map(user => ({
-          id: user.id,
-          email: `user-${user.id.slice(0, 8)}`, // Placeholder since we can't access auth.users email
-          full_name: user.full_name || user.display_name || 'Unknown User',
-          role: user.role || 'user',
-          created_at: user.created_at || '',
-          is_admin: user.role === 'admin'
-        })) || [];
+        // Get file counts for each user
+        const userIds = authUsers.users.map(u => u.id);
+        const { data: fileCounts, error: fileError } = await supabase
+          .from('files')
+          .select('user_id')
+          .in('user_id', userIds);
 
-        setUsers(usersData);
+        if (fileError) {
+          console.error('Error fetching file counts:', fileError);
+        }
+
+        // Create file count map
+        const fileCountMap = new Map();
+        fileCounts?.forEach(file => {
+          const count = fileCountMap.get(file.user_id) || 0;
+          fileCountMap.set(file.user_id, count + 1);
+        });
+
+        // Combine auth users with profiles
+        const usersWithProfiles = authUsers.users.map(authUser => {
+          const profile = profilesData?.find(p => p.id === authUser.id);
+          return {
+            id: authUser.id,
+            email: authUser.email || '',
+            full_name: profile?.full_name || authUser.user_metadata?.full_name || '',
+            display_name: profile?.display_name || '',
+            avatar_url: profile?.avatar_url || '',
+            role: profile?.role || 'user',
+            created_at: authUser.created_at,
+            file_count: fileCountMap.get(authUser.id) || 0
+          };
+        });
+
+        setUsers(usersWithProfiles);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
@@ -78,7 +117,7 @@ export const UserManagement = () => {
           User Management
         </CardTitle>
         <CardDescription>
-          Total users: {users.length} • Admins: {users.filter(u => u.is_admin).length} • Regular users: {users.filter(u => !u.is_admin).length}
+          Total users: {users.length} • Admins: {users.filter(u => u.role === 'admin').length} • Regular users: {users.filter(u => u.role !== 'admin').length}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,10 +126,9 @@ export const UserManagement = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
-                <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>Files</TableHead>
+                <TableHead>Joined</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -98,43 +136,43 @@ export const UserManagement = () => {
                 <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-sm font-medium">
-                        {user.full_name?.[0]?.toUpperCase() || 'U'}
-                      </div>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                          src={user.avatar_url || ""} 
+                          alt={user.display_name || user.full_name || "User"}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                          {(user.display_name || user.full_name || user.email)?.charAt(0).toUpperCase() || "U"}
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
-                        <div className="font-mono text-xs text-muted-foreground">
-                          {user.id.slice(0, 8)}...
-                        </div>
+                        <div className="font-medium">{user.display_name || user.full_name || 'No name'}</div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{user.full_name}</div>
-                  </TableCell>
-                  <TableCell>
                     <Badge 
-                      variant={user.role === 'admin' ? 'default' : 'secondary'}
-                      className={user.role === 'admin' ? 'bg-gradient-to-r from-primary to-primary/80' : ''}
+                      variant={user.role === 'admin' ? "default" : "secondary"} 
+                      className={`flex items-center gap-1 ${user.role === 'admin' ? 'bg-gradient-to-r from-primary to-primary/80' : ''}`}
                     >
-                      {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
+                      {user.role === 'admin' && <Shield className="h-3 w-3" />}
+                      {user.role === 'admin' ? "Admin" : "User"}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {user.is_admin ? (
-                      <Badge variant="default" className="flex items-center gap-1 w-fit bg-gradient-to-r from-primary to-primary/80">
-                        <UserCheck className="h-3 w-3" />
-                        Admin
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">User</Badge>
-                    )}
+                    <div className="flex items-center gap-1 text-sm">
+                      <Files className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{user.file_count || 0}</span>
+                      <span className="text-muted-foreground">files</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    }) : 'N/A'}
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      {user.created_at ? formatDistanceToNow(new Date(user.created_at), { addSuffix: true }) : 'Unknown'}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
