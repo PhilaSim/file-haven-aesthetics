@@ -5,8 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { Users, UserCheck, Files, Shield, Clock } from 'lucide-react';
+import { Users, UserCheck, Files, Shield, Clock, Trash2, UserX, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface User {
   id: string;
@@ -22,6 +26,7 @@ interface User {
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -88,6 +93,68 @@ export const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    try {
+      // Delete user from auth.users (this will cascade to other tables)
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (authError) {
+        console.error('Error deleting user from auth:', authError);
+        toast({
+          title: "Error",
+          description: "Failed to delete user. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Remove user from local state
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+      
+      toast({
+        title: "User deleted",
+        description: `User ${userEmail} has been permanently deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeactivateUser = async (userId: string, userEmail: string) => {
+    try {
+      // In Supabase, we can't truly "deactivate" a user, but we can sign them out
+      // and potentially update their role or add a status flag
+      const { error } = await supabase.auth.admin.signOut(userId);
+      
+      if (error) {
+        console.error('Error signing out user:', error);
+        toast({
+          title: "Error",
+          description: "Failed to deactivate user. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "User deactivated",
+        description: `User ${userEmail} has been signed out from all sessions.`,
+      });
+    } catch (error) {
+      console.error('Error deactivating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to deactivate user. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -129,6 +196,7 @@ export const UserManagement = () => {
                 <TableHead>Role</TableHead>
                 <TableHead>Files</TableHead>
                 <TableHead>Joined</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -174,11 +242,55 @@ export const UserManagement = () => {
                       {user.created_at ? formatDistanceToNow(new Date(user.created_at), { addSuffix: true }) : 'Unknown'}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    {user.role !== 'admin' && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleDeactivateUser(user.id, user.email || '')}>
+                            <UserX className="mr-2 h-4 w-4" />
+                            Sign out user
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete user
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the user "{user.email}" and remove all their data from the system.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(user.id, user.email || '')}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No users found
                   </TableCell>
                 </TableRow>

@@ -19,10 +19,12 @@ export type Database = {
           created_at: string | null
           file_name: string
           id: string
+          is_favorite: boolean | null
           mime_type: string
           public_url: string | null
           size: number
           storage_path: string
+          tags: string[] | null
           updated_at: string | null
           user_id: string | null
         }
@@ -30,10 +32,12 @@ export type Database = {
           created_at?: string | null
           file_name: string
           id?: string
+          is_favorite?: boolean | null
           mime_type: string
           public_url?: string | null
           size: number
           storage_path: string
+          tags?: string[] | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -41,10 +45,12 @@ export type Database = {
           created_at?: string | null
           file_name?: string
           id?: string
+          is_favorite?: boolean | null
           mime_type?: string
           public_url?: string | null
           size?: number
           storage_path?: string
+          tags?: string[] | null
           updated_at?: string | null
           user_id?: string | null
         }
