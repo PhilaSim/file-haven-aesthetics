@@ -42,15 +42,40 @@ export const Settings = () => {
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
       
-      setUserProfile(data);
-      setProfileForm({
-        display_name: data.display_name || '',
-        full_name: data.full_name || '',
-      });
+      if (data) {
+        setUserProfile(data);
+        setProfileForm({
+          display_name: data.display_name || '',
+          full_name: data.full_name || '',
+        });
+      } else {
+        // Create profile if it doesn't exist
+        const { data: newProfile, error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || '',
+            display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+            role: 'user'
+          })
+          .select()
+          .single();
+
+        if (!createError && newProfile) {
+          setUserProfile(newProfile);
+          setProfileForm({
+            display_name: newProfile.display_name || '',
+            full_name: newProfile.full_name || '',
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }

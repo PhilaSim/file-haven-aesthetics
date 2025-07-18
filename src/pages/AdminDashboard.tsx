@@ -1,6 +1,7 @@
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { FileManagement } from '@/components/admin/FileManagement';
+import { StorageOverview } from '@/components/admin/StorageOverview';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -85,41 +86,7 @@ export const AdminDashboard = () => {
       {/* Content */}
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Stats Overview */}
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                System Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">Active</div>
-              <p className="text-sm text-muted-foreground">All systems operational</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Database Health
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">Good</div>
-              <p className="text-sm text-muted-foreground">Connections stable</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Last Updated
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Date().toLocaleTimeString()}</div>
-              <p className="text-sm text-muted-foreground">Real-time data</p>
-            </CardContent>
-          </Card>
-        </div>
+        <StorageOverview />
 
         {/* Management Sections */}
         <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-2">
