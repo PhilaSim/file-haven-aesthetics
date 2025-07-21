@@ -10,7 +10,7 @@ There are several ways of editing your application.
 
 **Use Lovable**
 
-Simply visit the [Lovable Project](https://main.d25vnnvw9zb7kb.amplifyapp.com/) and start prompting.
+Simply visit the [Lovable Project]([https://main.d25vnnvw9zb7kb.amplifyapp.com/](https://filevaults.lovable.app/)) and start prompting.
 
 Changes made via Lovable will be committed automatically to this repo.
 
