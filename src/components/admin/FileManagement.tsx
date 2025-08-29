@@ -47,7 +47,7 @@ export const FileManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setFiles(data || []);
+      setFiles(data ?? []); // ✅ handle null safely
     } catch (error) {
       console.error('Error fetching files:', error);
       toast({
@@ -63,6 +63,7 @@ export const FileManagement = () => {
   const handleDeleteFile = async (fileId: string, fileName: string) => {
     setDeleting(fileId);
     try {
+      // ✅ delete from DB
       const { error } = await supabase
         .from('files')
         .delete()
@@ -70,7 +71,14 @@ export const FileManagement = () => {
 
       if (error) throw error;
 
-      setFiles(files.filter(file => file.id !== fileId));
+      // ✅ also try delete from storage (assuming bucket "files")
+      const { error: storageError } = await supabase.storage
+        .from('files')
+        .remove([fileName]);
+
+      if (storageError) console.warn('Storage deletion issue:', storageError);
+
+      setFiles(prev => prev.filter(file => file.id !== fileId));
       toast({
         title: 'Success',
         description: `File "${fileName}" has been permanently deleted`,
@@ -88,10 +96,11 @@ export const FileManagement = () => {
   };
 
   const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown';
+    if (bytes === undefined) return 'Unknown'; 
+    if (bytes === 0) return '0 Bytes'; // ✅ fix
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
   };
 
   if (loading) {
@@ -114,8 +123,6 @@ export const FileManagement = () => {
       </Card>
     );
   }
-
-  const activeFiles = files; // All files are active since we don't have soft delete
 
   return (
     <Card>
